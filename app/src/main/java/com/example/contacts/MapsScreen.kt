@@ -28,15 +28,9 @@ fun MapsScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-
-    // Состояния для локации адреса контакта
     var locationLatLng by remember { mutableStateOf<LatLng?>(null) }
     var isLoading by remember { mutableStateOf(true) }
-
-    // Состояние камеры Google Maps
     val cameraPositionState = rememberCameraPositionState()
-
-    // 1. Проверяем, есть ли уже разрешение на геолокацию
     var hasLocationPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -45,17 +39,12 @@ fun MapsScreen(
             ) == PackageManager.PERMISSION_GRANTED
         )
     }
-
-    // 2. Создаем лаунчер для запроса разрешений (замена старого onActivityResult)
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
-        // Проверяем, дал ли пользователь точное или хотя бы примерное разрешение
         hasLocationPermission = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
                 permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
     }
-
-    // 3. При старте экрана запрашиваем разрешение, если его еще нет
     LaunchedEffect(Unit) {
         if (!hasLocationPermission) {
             permissionLauncher.launch(
@@ -66,8 +55,6 @@ fun MapsScreen(
             )
         }
     }
-
-    // Поиск координат контакта по тексту (твой старый код)
     LaunchedEffect(address) {
         withContext(Dispatchers.IO) {
             try {
@@ -81,51 +68,38 @@ fun MapsScreen(
                     withContext(Dispatchers.Main) {
                         locationLatLng = latLng
                         isLoading = false
-                        // Перемещаем камеру на контакт
                         cameraPositionState.move(CameraUpdateFactory.newLatLngZoom(latLng, 15f))
                     }
                 } else {
                     withContext(Dispatchers.Main) {
                         isLoading = false
-                        Toast.makeText(context, "Локация не найдена", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Локацията не намерена", Toast.LENGTH_SHORT).show()
                         onNavigateBack()
                     }
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     isLoading = false
-                    Toast.makeText(context, "Ошибка: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Грешка: ${e.message}", Toast.LENGTH_SHORT).show()
                     onNavigateBack()
                 }
             }
         }
     }
-
     Box(modifier = Modifier.fillMaxSize()) {
         if (isLoading) {
             CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
         } else if (locationLatLng != null) {
-
-
             GoogleMap(
                 modifier = Modifier.fillMaxSize(),
                 cameraPositionState = cameraPositionState,
-
                 properties = MapProperties(isMyLocationEnabled = hasLocationPermission)
             ) {
-
-                GoogleMap(
-                    modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState,
-                    properties = MapProperties(isMyLocationEnabled = hasLocationPermission)
-                ) {
-
-                    Marker(
-                        state = rememberMarkerState(position = locationLatLng!!),
-                        title = name,
-                        snippet = address
-                    )
-                }
+                Marker(
+                    state = rememberMarkerState(position = locationLatLng!!),
+                    title = name,
+                    snippet = address
+                )
             }
         }
     }
