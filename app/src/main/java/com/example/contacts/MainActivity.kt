@@ -16,7 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.contacts.ui.theme.ContactsTheme
-
+import android.net.Uri
 class MainActivity : ComponentActivity() {
 
 
@@ -51,7 +51,6 @@ fun ContactsAppNavigation(viewModel: ContactViewModel, modifier: Modifier = Modi
         modifier = modifier
     ) {
 
-
         composable("main_screen") {
             MainScreen(
                 viewModel = viewModel,
@@ -73,7 +72,11 @@ fun ContactsAppNavigation(viewModel: ContactViewModel, modifier: Modifier = Modi
                     navController.popBackStack()
                 },
                 onNavigateToMap = { name, address ->
-                    navController.navigate("maps_screen/$name/$address")
+                    val safeName = if (name.isNotBlank()) name else "Неизвестен"
+                    val safeAddress = if (address.isNotBlank()) address else "Няма_адрес"
+                    val encodedName = Uri.encode(safeName)
+                    val encodedAddress = Uri.encode(safeAddress)
+                    navController.navigate("maps_screen/$encodedName/$encodedAddress")
                 }
             )
         }

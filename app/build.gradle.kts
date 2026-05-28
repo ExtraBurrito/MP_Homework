@@ -14,7 +14,6 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -50,6 +49,8 @@ dependencies {
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
     implementation(libs.play.services.location)
+    implementation(libs.zxing.android.embedded)
+    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.compose.runtime.livedata)
     ksp(libs.androidx.room.compiler)
     implementation(libs.coil.compose)
