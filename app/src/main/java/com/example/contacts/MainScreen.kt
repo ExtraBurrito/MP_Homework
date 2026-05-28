@@ -40,6 +40,16 @@ fun MainScreen(
     var address by remember { mutableStateOf("") }
     var photoUrl by remember { mutableStateOf("") }
     var photoPath by remember { mutableStateOf<String?>(null) }
+    var showDuplicateDialog by remember { mutableStateOf(false) }
+    var duplicateMessage by remember { mutableStateOf("") }
+
+    val checkForDuplicates = { checkName: String, checkPhone: String ->
+        contacts.find { it.name.equals(checkName, ignoreCase = true) }?.let {
+            "Контактът с име '${checkName}' вече съществува!"
+        } ?: contacts.find { it.phone == checkPhone }?.let {
+            "Телефонният номер '${checkPhone}' вече се използва!"
+        }
+    }
     val pickImage = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let {
             scope.launch {
@@ -51,8 +61,14 @@ fun MainScreen(
         if (result.contents != null) {
             val parsedContact = parseQrToContact(result.contents)
             if (parsedContact != null) {
-                viewModel.addContact(parsedContact)
-                Toast.makeText(context, "Контактът е импортиран!", Toast.LENGTH_SHORT).show()
+                val error = checkForDuplicates(parsedContact.name, parsedContact.phone)
+                if (error != null) {
+                    duplicateMessage = error
+                    showDuplicateDialog = true
+                } else {
+                    viewModel.addContact(parsedContact)
+                    Toast.makeText(context, "Контактът е импортиран!", Toast.LENGTH_SHORT).show()
+                }
             } else {
                 Toast.makeText(context, "Грешка: Неразпознат QR формат", Toast.LENGTH_LONG).show()
             }
@@ -61,6 +77,23 @@ fun MainScreen(
     val isEmailValid = email.contains("@") || email.isEmpty()
     val isPhoneValid = phone.length >= 7 || phone.isEmpty()
     val isFormValid = email.contains("@") && phone.length >= 7 && email.isNotEmpty()
+
+    if (showDuplicateDialog) {
+        AlertDialog(
+            onDismissRequest = { showDuplicateDialog = false },
+            title = {
+                Text(text = "Внимание", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text(text = duplicateMessage, fontSize = 16.sp)
+            },
+            confirmButton = {
+                Button(onClick = { showDuplicateDialog = false }) {
+                    Text("ОК")
+                }
+            }
+        )
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -119,16 +152,13 @@ fun MainScreen(
             ) {
                 Text("Снимка", fontSize = 12.sp)
             }
-
             Spacer(modifier = Modifier.width(4.dp))
-
-            // --- QR ---
             Button(
                 onClick = {
                     val options = ScanOptions().apply {
                         setDesiredBarcodeFormats(ScanOptions.QR_CODE)
                         setPrompt("Поставете QR кода в рамката")
-                        setCameraId(0) // Задняя камера
+                        setCameraId(0)
                         setBeepEnabled(true)
                         setBarcodeImageEnabled(true)
                         setOrientationLocked(true)
@@ -142,22 +172,30 @@ fun MainScreen(
             ) {
                 Text("QR Скенер", fontSize = 12.sp)
             }
+
             Spacer(modifier = Modifier.width(4.dp))
+
             Button(
                 enabled = isFormValid,
                 modifier = Modifier.weight(1f),
                 contentPadding = PaddingValues(4.dp),
                 onClick = {
-                    val contact = Contact(
-                        name = name,
-                        phone = phone,
-                        email = email,
-                        address = address,
-                        photoUrl = photoUrl,
-                        photoPath = photoPath ?: ""
-                    )
-                    viewModel.addContact(contact)
-                    name = ""; phone = ""; email = ""; address = ""; photoUrl = ""; photoPath = null
+                    val error = checkForDuplicates(name, phone)
+                    if (error != null) {
+                        duplicateMessage = error
+                        showDuplicateDialog = true
+                    } else {
+                        val contact = Contact(
+                            name = name,
+                            phone = phone,
+                            email = email,
+                            address = address,
+                            photoUrl = photoUrl,
+                            photoPath = photoPath ?: ""
+                        )
+                        viewModel.addContact(contact)
+                        name = ""; phone = ""; email = ""; address = ""; photoUrl = ""; photoPath = null
+                    }
                 }
             ) {
                 Text("Добави", fontSize = 12.sp)
@@ -213,7 +251,6 @@ fun parseQrToContact(qrText: String): Contact? {
             var address = ""
             val data = qrText.removePrefix("MECARD:").removePrefix("mecard:").removeSuffix(";;")
             val fields = data.split(";")
-
             for (field in fields) {
                 when {
                     field.uppercase().startsWith("N:") -> name = field.drop(2)
